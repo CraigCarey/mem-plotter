@@ -48,14 +48,18 @@ def plot_mem(pid: int):
         df = pd.DataFrame({'cpu_kb': [], 'cpu_mb': []})
         
     st.subheader('CPU Memory Consumption (MB)')
-    cpu_mb_placeholder = st.empty()
+    cpu_mb_chart_placeholder = st.empty()
+    cpu_mb_df_placeholder = st.empty()
 
     st.subheader('CPU Memory Consumption (KB)')
-    cpu_kb_placeholder = st.empty()
+    cpu_kb_chart_placeholder = st.empty()    
 
     if gpu_used:
         st.subheader('GPU Memory Consumption (MB)')
-        gpu_placeholder = st.empty()
+        gpu_chart_placeholder = st.empty()
+        gpu_df_placeholder = st.empty()
+
+    df_describe_placeholder = st.empty()
 
     while True:
         new_row = get_data(pid, gpu_used)
@@ -65,12 +69,14 @@ def plot_mem(pid: int):
         df['cpu_mb_ma'] = df.rolling(window=window_size)['cpu_mb'].mean()
         df['cpu_kb_ma'] = df.rolling(window=window_size)['cpu_kb'].mean()
 
-        cpu_mb_placeholder.line_chart(data=df[['cpu_mb', 'cpu_mb_ma']])
-        cpu_kb_placeholder.line_chart(data=df[['cpu_kb', 'cpu_kb_ma']])
+        cpu_mb_chart_placeholder.line_chart(data=df[['cpu_mb', 'cpu_mb_ma']])
+        cpu_kb_chart_placeholder.line_chart(data=df[['cpu_kb', 'cpu_kb_ma']])
 
         if (gpu_used):
             df['gpu_mb_ma'] = df.rolling(window=window_size)['gpu_mb'].mean()
-            gpu_placeholder.line_chart(data=df[['gpu_mb', 'gpu_mb_ma']])
+            gpu_chart_placeholder.line_chart(data=df[['gpu_mb', 'gpu_mb_ma']])
+
+        df_describe_placeholder.write(df.describe(include='all'))
 
         time.sleep(1)
 
