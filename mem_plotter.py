@@ -9,6 +9,9 @@ import time
 
 st.title('Memory Consumption Plotter')
 
+window_size = 10
+
+
 def get_cpu_memory_consumption(pid: int):
     process = psutil.Process(pid).as_dict(attrs=['memory_info'])
     rss_kb = process['memory_info'].rss // 1024
@@ -22,12 +25,13 @@ def get_gpu_memory_consumption(pid: int):
 
 def get_data(pid: int, gpu_used: bool = False):
     cpu_kb = get_cpu_memory_consumption(pid)
+    cpu_mb = cpu_kb // 1024
 
     if (gpu_used):
-        gpu_kb = get_gpu_memory_consumption(pid)
-        new_row = {'cpu': cpu_kb, 'gpu': gpu_kb}
+        gpu_mb = get_gpu_memory_consumption(pid)
+        new_row = {'cpu_kb': cpu_kb, 'cpu_mb': cpu_mb, 'gpu_mb': gpu_mb}
     else:
-        new_row = {'cpu': cpu_kb}
+        new_row = {'cpu_kb': cpu_kb, 'cpu_mb': cpu_mb}
 
     return new_row
 
@@ -39,13 +43,15 @@ def using_gpu(pid: int) -> bool:
 def plot_mem(pid: int):
     gpu_used = using_gpu(pid)
     if gpu_used:
-        df = pd.DataFrame({'cpu': [], 'gpu': []})    
+        df = pd.DataFrame({'cpu_kb': [], 'cpu_mb': [], 'gpu_mb': []})
     else:
-        df = pd.DataFrame({'cpu': []})
+        df = pd.DataFrame({'cpu_kb': [], 'cpu_mb': []})
         
+    st.subheader('CPU Memory Consumption (MB)')
+    cpu_mb_placeholder = st.empty()
 
     st.subheader('CPU Memory Consumption (KB)')
-    cpu_placeholder = st.empty()
+    cpu_kb_placeholder = st.empty()
 
     if gpu_used:
         st.subheader('GPU Memory Consumption (MB)')
@@ -56,15 +62,20 @@ def plot_mem(pid: int):
         
         df = pd.concat([df, pd.DataFrame.from_records([new_row])], ignore_index=True)
 
-        cpu_placeholder.line_chart(data=df['cpu'])
+        df['cpu_mb_ma'] = df.rolling(window=window_size)['cpu_mb'].mean()
+        df['cpu_kb_ma'] = df.rolling(window=window_size)['cpu_kb'].mean()
+
+        cpu_mb_placeholder.line_chart(data=df[['cpu_mb', 'cpu_mb_ma']])
+        cpu_kb_placeholder.line_chart(data=df[['cpu_kb', 'cpu_kb_ma']])
 
         if (gpu_used):
-            gpu_placeholder.line_chart(data=df['gpu'])
+            df['gpu_mb_ma'] = df.rolling(window=window_size)['gpu_mb'].mean()
+            gpu_placeholder.line_chart(data=df[['gpu_mb', 'gpu_mb_ma']])
 
         time.sleep(1)
 
 form = st.form("template_form")
-pid = form.text_input('PID') # 14294
+pid = form.text_input('PID')
 submit = form.form_submit_button("Start")
 
 if submit:
