@@ -10,7 +10,7 @@ import time
 st.title('Memory Consumption Plotter')
 
 window_size = 10
-
+refresh_secs = 5
 
 def get_cpu_memory_consumption(pid: int):
     process = psutil.Process(pid).as_dict(attrs=['memory_info'])
@@ -49,7 +49,6 @@ def plot_mem(pid: int):
         
     st.subheader('CPU Memory Consumption (MB)')
     cpu_mb_chart_placeholder = st.empty()
-    cpu_mb_df_placeholder = st.empty()
 
     st.subheader('CPU Memory Consumption (KB)')
     cpu_kb_chart_placeholder = st.empty()    
@@ -57,11 +56,13 @@ def plot_mem(pid: int):
     if gpu_used:
         st.subheader('GPU Memory Consumption (MB)')
         gpu_chart_placeholder = st.empty()
-        gpu_df_placeholder = st.empty()
 
     df_describe_placeholder = st.empty()
 
+    cnt = 0
+
     while True:
+
         new_row = get_data(pid, gpu_used)
         
         df = pd.concat([df, pd.DataFrame.from_records([new_row])], ignore_index=True)
@@ -69,19 +70,28 @@ def plot_mem(pid: int):
         df['cpu_mb_ma'] = df.rolling(window=window_size)['cpu_mb'].mean()
         df['cpu_kb_ma'] = df.rolling(window=window_size)['cpu_kb'].mean()
 
-        cpu_mb_chart_placeholder.line_chart(data=df[['cpu_mb', 'cpu_mb_ma']])
-        cpu_kb_chart_placeholder.line_chart(data=df[['cpu_kb', 'cpu_kb_ma']])
-
         if (gpu_used):
             df['gpu_mb_ma'] = df.rolling(window=window_size)['gpu_mb'].mean()
-            gpu_chart_placeholder.line_chart(data=df[['gpu_mb', 'gpu_mb_ma']])
 
-        df_describe_placeholder.write(df.describe(include='all'))
+        if (cnt % refresh_secs == 0):
+            cpu_mb_chart_placeholder.line_chart(data=df[['cpu_mb', 'cpu_mb_ma']])
+            cpu_kb_chart_placeholder.line_chart(data=df[['cpu_kb', 'cpu_kb_ma']])
 
+            if (gpu_used):
+                gpu_chart_placeholder.line_chart(data=df[['gpu_mb', 'gpu_mb_ma']])
+
+            df_describe_placeholder.write(df.describe(include='all'))
+
+            df.to_pickle(f"{pid}.dat")
+
+        cnt = cnt + 1
+        
         time.sleep(1)
 
 form = st.form("template_form")
 pid = form.text_input('PID')
+refresh_secs = int(form.text_input(label='Refresh (s)', value=f"{refresh_secs}"))
+window_size = int(form.text_input(label='Rolling avg win', value=f"{window_size}"))
 submit = form.form_submit_button("Start")
 
 if submit:
